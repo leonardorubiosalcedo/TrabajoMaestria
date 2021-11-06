@@ -1,0 +1,288 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(sqldf)
+library(gsubfn)
+library(proto)
+library(RSQLite)
+library(rgdal)
+library(RColorBrewer)
+library(sp)
+bogota<-readOGR(file.choose())
+```
+
+
+```{r}
+library(readxl)
+DIVIPOLA_Municipios <- read_excel("D:/descargas/DIVIPOLA_Municipios.xlsx")
+head(DIVIPOLA_Municipios)
+```
+
+```{r}
+library(readr)
+internet_movil <- read_csv("D:/descargas/Cobertura_m_vil_por_tecnolog_a__departamento_y_municipio_por_proveedor.csv")
+internet_movil
+```
+
+```{r}
+library(readxl)
+Internet_Fijo<- read_excel("D:/Universidad/Maestria/Tesis/DATOS/Geograficos/Internet_Fijo_Penetraci_n_Municipio_2.xlsx")
+Internet_Fijo
+```
+
+```{r}
+library(readr)
+datos_covid<- read_csv("D:/descargas/Casos_positivos_de_COVID-19_en_Colombia.csv")
+head(datos_covid)
+```
+
+```{r}
+covid_depu<-sqldf("SELECT Código_municipio as municipio,Recuperado,case when Recuperado = 'Fallecido' or Recuperado = 'fallecido' then 1 else 0 end as fallecido,case when Recuperado!='Fallecido' and Recuperado != 'fallecido' then 1 else 0 end as caso from datos_covid")
+
+covid_agrup<-sqldf("SELECT municipio, sum(fallecido) as fallecido, sum(caso) as caso, count(*) as cant_caso  FROM covid_depu group by  municipio")
+```
+
+
+
+```{r}
+#datos_covid2<- 
+sqldf("SELECT distinct Recuperado  
+                     FROM datos_covid ")
+```
+
+
+
+```{r}
+datos_internet=sqldf("SELECT * FROM DIVIPOLA_Municipios left outer join Internet_Fijo on MUNICIPIO = 'Nombre...4' ")
+
+```
+
+```{r}
+library(readxl)
+geografico_col<- read_excel("D:\\Universidad\\Maestria\\Tesis\\DATOS\\Geograficos\\Datos_geograficos_Rstidio_left.xlsx")
+head(geografico_col)
+```
+
+```{r}
+my_data<-sqldf("SELECT ANO_CAMP, codi_municipio,DEPARTAMENTO,MUNICIPIO,
+      avg(PUNT_GLOBAL_mean) as punt_global, 
+      sum(CANTIDAD_ESTUDIANTES) cantidad_estudiantes,
+      sum(FAMI_TIENECOMPUTADOR_Si) as FAMI_TIENECOMPUTADOR_Si,
+      sum(FAMI_TIENEINTERNET_No) as FAMI_TIENEINTERNET_No,
+      max(ACCESOS_FIJOS_INTERNET) as ACCESOS_FIJOS_INTERNET,
+      max(POBLACION_DANE) as POBLACION_DANE,
+      max(POBLACION_DANE) / max(ACCESOS_FIJOS_INTERNET) as indice,
+      count(*) as Cantidad_colegios
+      FROM geografico_col group by ANO_CAMP,
+      codi_municipio,DEPARTAMENTO order by cantidad_estudiantes
+ asc")
+my_data[is.na(my_data)] <- 0
+data_2018<-sqldf("SELECT * FROM my_data where ANO_CAMP=2018")
+data_2019<-sqldf("SELECT * FROM my_data where ANO_CAMP=2019")
+data_2020<-sqldf("SELECT * FROM my_data where ANO_CAMP=2020")
+data_2021<-sqldf("SELECT * FROM my_data where ANO_CAMP=2021")
+#my_data
+data_2021
+```
+
+```{r}
+datos<-bogota@data
+datos
+```
+
+
+```{r}
+data_remplazar<-sqldf("SELECT T1.*,
+      T2018.ACCESOS_FIJOS_INTERNET punt_int2018,T2018.POBLACION_DANE as poblacion_2018 ,
+      T2018.indice indice_2018, T2018.punt_global as punt_glob2018, T2018.Cantidad_colegios as cant_2018,
+      T2019.ACCESOS_FIJOS_INTERNET punt_int2019,T2019.POBLACION_DANE as poblacion_2019 ,
+      T2019.indice indice_2019, T2019.punt_global as punt_glob2019, T2019.Cantidad_colegios as cant_2019,
+      T2020.ACCESOS_FIJOS_INTERNET punt_int2020,T2020.POBLACION_DANE as poblacion_2020 ,
+      T2020.indice indice_2020, T2020.punt_global as punt_glob2020, T2020.Cantidad_colegios as cant_2020,
+      T2021.ACCESOS_FIJOS_INTERNET punt_int2021,T2021.POBLACION_DANE as poblacion_2021 ,
+      T2021.indice indice_2021, T2021.punt_global as punt_glob2021, T2021.Cantidad_colegios as cant_2021,
+      fallecido, caso, cant_caso 
+      FROM datos as T1 LEFT OUTER join data_2018 as T2018 on T1.MPIO_CDPMP = T2018.codi_municipio 
+      LEFT OUTER join data_2019 as T2019 on T1.MPIO_CDPMP = T2019.codi_municipio
+      LEFT OUTER join data_2020 as T2020 on T1.MPIO_CDPMP = T2020.codi_municipio
+      LEFT OUTER join data_2021 as T2021 on T1.MPIO_CDPMP = T2021.codi_municipio
+      LEFT OUTER join covid_agrup as covid on T1.MPIO_CDPMP = covid.municipio
+      
+      ")
+data_remplazar[is.na(data_remplazar)] <- 0
+head(data_remplazar)
+```
+
+
+```{r}
+bogota@data$punt_int2018<-data_remplazar$punt_int2018
+bogota@data$poblacion_2018<-data_remplazar$poblacion_2018
+bogota@data$indice_2018<-data_remplazar$indice_2018
+bogota@data$punt_glob2018<-data_remplazar$punt_glob2018
+bogota@data$punt_int2019<-data_remplazar$punt_int2019
+bogota@data$poblacion_2019<-data_remplazar$poblacion_2019
+bogota@data$indice_2019<-data_remplazar$indice_2019
+bogota@data$punt_glob2019<-data_remplazar$punt_glob2019
+bogota@data$punt_int2020<-data_remplazar$punt_int2020
+bogota@data$poblacion_2020<-data_remplazar$poblacion_2020
+bogota@data$indice_2020<-data_remplazar$indice_2020
+bogota@data$punt_glob2020<-data_remplazar$punt_glob2020
+bogota@data$punt_int2021<-data_remplazar$punt_int2021
+bogota@data$poblacion_2021<-data_remplazar$poblacion_2021
+bogota@data$indice_2021<-data_remplazar$indice_2021
+bogota@data$punt_glob2021<-data_remplazar$punt_glob2021
+
+
+bogota@data$cant_2018<-data_remplazar$cant_2018
+bogota@data$cant_2019<-data_remplazar$cant_2019
+bogota@data$cant_2020<-data_remplazar$cant_2020
+bogota@data$cant_2021<-data_remplazar$cant_2021
+
+bogota@data$indic_coleg_2018<- data_remplazar$cant_2018 / data_remplazar$poblacion_2018
+bogota@data$indic_coleg_2019<- data_remplazar$cant_2019 / data_remplazar$poblacion_2019
+bogota@data$indic_coleg_2020<- data_remplazar$cant_2020 / data_remplazar$poblacion_2020
+bogota@data$indic_coleg_2021<- data_remplazar$cant_2021 / data_remplazar$poblacion_2021
+
+bogota@data$fallecido<- data_remplazar$fallecido
+bogota@data$caso_covid<- data_remplazar$caso
+bogota@data$cant_caso_covid<- data_remplazar$cant_caso
+bogota@data$indi_covid<-  data_remplazar$cant_caso / data_remplazar$poblacion_2021
+bogota@data$indi_muerte<- data_remplazar$fallecido / data_remplazar$cant_caso
+
+
+bogota@data$indi_internet2018<-data_remplazar$punt_int2018 / data_remplazar$poblacion_2018
+bogota@data$indi_internet2019<-data_remplazar$punt_int2019 / data_remplazar$poblacion_2019
+bogota@data$indi_internet2020<-data_remplazar$punt_int2020 / data_remplazar$poblacion_2020
+bogota@data$indi_internet2021<-data_remplazar$punt_int2021 / data_remplazar$poblacion_2021
+```
+
+
+
+```{r message = FALSE , warning = FALSE}
+my.palette1 <- brewer.pal(n = 9, name = "YlOrRd")
+#View(inci)
+spplot(bogota,"punt_glob2018",cobrewer.pall.regions = my.palette1, main="CALIFICACIONES",cuts = 4)
+display.brewer.all()
+```
+
+```{r message = FALSE , warning = FALSE}
+my.palette2 <- brewer.pal(n = 5, name = "YlOrRd")
+#View(inci)
+spplot(bogota,"poblacion_2018",col.regions = my.palette2, main="POBLACION_DANE",cuts = 8)
+display.brewer.all()
+```
+
+```{r message = FALSE , warning = FALSE}
+my.palette3 <- brewer.pal(n = 5, name = "YlOrRd")
+#View(inci)
+spplot(bogota,"punt_int2018",col.regions = my.palette3, main="INTERNET",cuts = 8)
+display.brewer.all()
+```
+
+```{r message = FALSE , warning = FALSE}
+my.palette3 <- brewer.pal(n = 5, name = "YlOrRd")
+#View(inci)
+spplot(bogota,"cant_2018",col.regions = my.palette3, main="CANTIDA COLEGIOS",cuts = 8)
+display.brewer.all()
+```
+
+```{r message = FALSE , warning = FALSE}
+my.palette3 <- brewer.pal(n = 5, name = "YlOrRd")
+#View(inci)
+spplot(bogota,"indic_coleg_2018",col.regions = my.palette3, main="Colegios POR Habitantes",cuts = 4)
+display.brewer.all()
+```
+
+```{r message = FALSE , warning = FALSE}
+my.palette3 <- brewer.pal(n = 5, name = "YlOrRd")
+#View(inci)
+spplot(bogota,"cant_caso_covid",col.regions = my.palette3, main="Casos Covid",cuts = 8)
+display.brewer.all()
+```
+
+```{r message = FALSE , warning = FALSE}
+my.palette3 <- brewer.pal(n = 8, name = "YlOrRd")
+#View(inci)
+spplot(bogota,"indi_covid",col.regions = my.palette3, main="Casos por poblacion",cuts = 5)
+display.brewer.all()
+```
+
+```{r message = FALSE , warning = FALSE}
+my.palette3 <- brewer.pal(n = 8, name = "YlOrRd")
+#View(inci)
+spplot(bogota,"indi_muerte",col.regions = my.palette3, main="Casos por muerte",cuts = 5)
+display.brewer.all()
+```
+
+```{r message = FALSE , warning = FALSE}
+my.palette3 <- brewer.pal(n = 10, name = "YlOrRd")
+#View(inci)
+spplot(bogota,"indi_internet2020",col.regions = my.palette3, main="Indi Internet",cuts = 8)
+display.brewer.all()
+```
+
+```{r}
+datos5<-bogota@data
+datos6<-sqldf("SELECT 
+      MPIO_CCDGO,MPIO_CNMBR,punt_glob2018,punt_glob2019,punt_glob2020,punt_glob2021,indi_internet2018,
+      indi_internet2019,indi_internet2020,indi_internet2021,indic_coleg_2018,indic_coleg_2019,
+      indic_coleg_2020,indic_coleg_2021,fallecido,caso_covid,cant_caso_covid,indi_covid,
+      poblacion_2018,poblacion_2019,poblacion_2020,poblacion_2021,
+      cant_2018,cant_2019,cant_2020,cant_2021
+      from datos5 
+      where (punt_glob2018<100 and punt_glob2018>0)
+      or (punt_glob2019<50 and punt_glob2019>0) 
+      or (punt_glob2020<50 and punt_glob2020>0)
+      or (punt_glob2021<50 and punt_glob2021>0)
+      or indi_internet2018<0.0001
+      or indi_internet2019<0.0001
+      or indi_internet2020<0.0001
+      or indi_internet2021<0.0001
+      or indic_coleg_2018<0.00001
+      or indic_coleg_2019<0.00001
+      or indic_coleg_2020<0.00001
+      or indic_coleg_2021<0.00001 
+      order by punt_glob2018,punt_glob2019,punt_glob2020,punt_glob2021,indi_internet2018,
+      indi_internet2019,indi_internet2020,indi_internet2021,indic_coleg_2018,indic_coleg_2019,
+      indic_coleg_2020,indic_coleg_2021,fallecido,caso_covid,cant_caso_covid,indi_covid desc
+      ")
+datos6
+```
+
+
+```{r}
+library("writexl")
+write_xlsx(datos6, "D:\\Universidad\\Maestria\\Tesis\\DATOS\\Geograficos\\poblacion_vulnerable.xlsx")
+```
+
+
+```{r}
+sqldf("SELECT * from datos5 
+      where 
+      indic_coleg_2018<0.0001
+      ")
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
+
+```{r}
+
+```
+
