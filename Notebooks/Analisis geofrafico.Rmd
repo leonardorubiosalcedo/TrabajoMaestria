@@ -1,0 +1,84 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+
+
+```{r}
+library(rlang)
+library(moments)
+library(sqldf)
+```
+
+```{r}
+library(readxl)
+datos_geograficos_agrup_municipio <- read_excel("D:/Universidad/Maestria/Tesis/DATOS/Geograficos/datos_geograficos_agrup_municipio.xlsx")
+head(datos_geograficos_agrup_municipio)
+```
+
+
+```{r}
+library(readxl)
+Internet_Fijo_Penetraci_n_Municipio_2 <- read_excel("D:/Universidad/Maestria/Tesis/DATOS/Geograficos/Internet_Fijo_Penetraci_n_Municipio_2.xlsx")
+head(Internet_Fijo_Penetraci_n_Municipio_2)
+```
+
+```{r}
+data_consolidada<-sqldf("SELECT P2.*,P1.DEPARTAMENTO, P1.MUNICIPIO,
+      P1.'No. ACCESOS FIJOS A INTERNET' as ACCESOS_FIJOS_INTERNET, 
+      P1.'POBLACION DANE' as POBLACION_DANE, P1.COLE_COD_MCPIO_UBICACION as codi_municipio
+      FROM  Internet_Fijo_Penetraci_n_Municipio_2     AS P1
+      LEFT JOIN datos_geograficos_agrup_municipio AS P2 ON 
+      P1.COLE_COD_MCPIO_UBICACION=P2.COLE_COD_MCPIO_UBICACION 
+      AND P1.TRIMESTRE= P2.TRIMESTRE
+      AND P1.'AÑO' = P2.'AÑO'")
+```
+
+```{r}
+data_consolidada
+```
+
+```{r}
+library("writexl")
+write_xlsx(data_consolidada, "D:\\Universidad\\Maestria\\Tesis\\DATOS\\Geograficos\\Datos_geograficos_Rstidio_left.xlsx")
+
+```
+
+
+```{r}
+library(rgdal)
+#municipios_colombia<-readOGR(file.choose())
+```
+
+```{r}
+#municipios_colombia$COLE_COD_MCPIO_UBICACION<- as.numeric(as.character(municipios_colombia$MPIO_CDPMP))
+#head(municipios_colombia)
+```
+
+```{r}
+sqldf("SELECT * FROM Internet_Fijo_Penetraci_n_Municipio_2 WHERE COLE_COD_MCPIO_UBICACION='5893'")
+
+```
+
+```{r}
+Municipios_georeferenciados <- read_excel("D:/Universidad/Maestria/Tesis/DATOS/Datos Adicionales/Municipios georeferenciados.xlsx")
+head(Municipios_georeferenciados)
+```
+
+
+```{r}
+datos_analidados<-sqldf("SELECT P1.*,P2.LATITUD,P2.LONGITUD FROM data_consolidada AS P1 
+      LEFT JOIN Municipios_georeferenciados  AS P2 
+      ON P1.COLE_COD_MCPIO_UBICACION=P2.'Código...3' ")
+```
+
+```{r}
+datos_analidados
+```
+
+
+```{r}
+#library(xlsx)
+write.csv(datos_analidados, "D:\\Universidad\\Maestria\\Tesis\\DATOS\\Geograficos\\Datos_geograficos_Rstidio.csv", row.names = FALSE)
+```
